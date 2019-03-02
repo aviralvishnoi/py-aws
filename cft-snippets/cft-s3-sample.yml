@@ -1,12 +1,13 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Cft which creates s3 bucket
-# In this template I have demomstrated usage of Mappings, Conditions, Allowed values for variables
-# Creation of s3 bucket along with server side encyption enabled in s3 bucket
+Description: Template for creation of s3 bucket with versioning, server side encyption, life cycle management configuration enabled
+# In this template I have demomstrated usage of Mappings, Conditions, (Allowed values and Allowed Pattern) for variables
 Parameters:
   S3BucketName:
     Type: String
     Default: abc-the-great
-    Description: Enter the name with whcih you want bucket to be created
+    Description: Name for the s3 bucket to be created
+    ConstraintDescription: The Bucket Name should contain only lowercase,letters,numbers,periods(.) and dashed(-).
+    AllowedPattern: "[a-z0-9-.]*"
   Creator:
     Type: String
     Default: abc
@@ -22,6 +23,12 @@ Parameters:
       - 'yes'
       - 'no'
     Description: Flag for creation of s3 bucket
+  Environment:
+    Type: String
+    Description: Select the Environment in which you want to create S3 bucket
+    AllowedValues:
+      - dev
+      - tst
 Mappings:
 # Mappings is used for tagging purpose in thie demo.
 # Depending on creators name it will tag s3 bucket with name and company of the creator
@@ -32,6 +39,15 @@ Mappings:
     def:
       Name: def xyz
       Company: PQR
+  EnvironmentMap:
+    dev:
+      LifeCycleExpirationDays: 90
+      StandardIaTransitionDays: 30
+      GlacierTransitionDays: 60
+    tst:
+      LifeCycleExpirationDays: 180
+      StandardIaTransitionDays: 60 
+      GlacierTransitionDays: 90
 Conditions:
   # As only 1 resource is being created in this cloudformation template, I have defined condition for 
   # explanantion purpose, if you set the CreateBucket flag to yes then only it will create the s3 bucket
@@ -43,11 +59,33 @@ Resources:
     Condition: CreateBucketCondition
     Type: 'AWS::S3::Bucket'
     Properties:
-      BucketName: !Ref S3BucketName
+      AccessControl: Private
+      BucketName: !Sub '${Environment}-${S3BucketName}'
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+        - Id: s3-bucket-lifecycle-config-rule
+          Status: Enabled
+          ExpirationInDays: !FindInMap 
+            - EnvironmentMap
+            - !Ref Environment
+            - LifeCycleExpirationDays
+          Transitions:
+          - StorageClass: STANDARD_IA
+            TransitionInDays: !FindInMap 
+            - EnvironmentMap
+            - !Ref Environment
+            - StandardIaTransitionDays
+          - StorageClass: GLACIER
+            TransitionInDays: !FindInMap 
+            - EnvironmentMap
+            - !Ref Environment
+            - GlacierTransitionDays
       Tags:
         - Key: Name
           Value: !Ref S3BucketName
@@ -68,3 +106,7 @@ Outputs:
     Value: !GetAtt 
       - S3Bucket
       - WebsiteURL
+  S3BucketName:
+    Condition: CreateBucketCondition
+    Description: This is the name of s3 bucket
+    Value: !Ref S3Bucket

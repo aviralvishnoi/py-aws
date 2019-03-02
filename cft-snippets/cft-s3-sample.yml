@@ -1,0 +1,70 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Cft which creates s3 bucket
+# In this template I have demomstrated usage of Mappings, Conditions, Allowed values for variables
+# Creation of s3 bucket along with server side encyption enabled in s3 bucket
+Parameters:
+  S3BucketName:
+    Type: String
+    Default: abc-the-great
+    Description: Enter the name with whcih you want bucket to be created
+  Creator:
+    Type: String
+    Default: abc
+    Description: Name of the creator for tagging purpose
+    # You can update allowed values list with the values whatever you want to enter for the name of
+    # creator and accordingly update the values for the allowed values in mappings.
+    AllowedValues:
+      - abc
+      - def
+  CreateBucket:
+    Type: String
+    AllowedValues:
+      - 'yes'
+      - 'no'
+    Description: Flag for creation of s3 bucket
+Mappings:
+# Mappings is used for tagging purpose in thie demo.
+# Depending on creators name it will tag s3 bucket with name and company of the creator
+  Names:
+    abc:
+      Name: abc 
+      Company: NA
+    def:
+      Name: def xyz
+      Company: PQR
+Conditions:
+  # As only 1 resource is being created in this cloudformation template, I have defined condition for 
+  # explanantion purpose, if you set the CreateBucket flag to yes then only it will create the s3 bucket
+  CreateBucketCondition: !Equals 
+    - !Ref CreateBucket
+    - 'yes'
+Resources:
+  S3Bucket:
+    Condition: CreateBucketCondition
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Ref S3BucketName
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        - Key: Name
+          Value: !Ref S3BucketName
+        - Key: CreatorName
+          Value: !FindInMap 
+            - Names
+            - !Ref Creator
+            - Name
+        - Key: CreatorCompany
+          Value: !FindInMap 
+            - Names
+            - !Ref Creator
+            - Company
+Outputs:
+  S3WebsiteURL:
+    Condition: CreateBucketCondition
+    Description: This is the website url for s3 bucket
+    Value: !GetAtt 
+      - S3Bucket
+      - WebsiteURL

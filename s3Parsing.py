@@ -9,7 +9,6 @@ import glob
 from docopt import docopt
 
 def getFileLocation(bucketName, pattern):
-
     resource = boto3.resource('s3')
     srcBucket = resource.Bucket(bucketName)
 
@@ -23,6 +22,7 @@ def getFileLocation(bucketName, pattern):
     print(allObjects)
 
 if __name__ == '__main__':
+
     arguments = docopt(__doc__, version= 'S3_Parser version 1.0')
     print(arguments)
     date = arguments['<YYYYMMDD>']
